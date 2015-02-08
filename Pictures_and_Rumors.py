@@ -48,7 +48,7 @@ class LEGO_set:
     def get_data(self):
         # Assigns values to the properties using the destined functions
         page_data = open_pages(self.lego_url)
-        
+
         self.description = get_description(page_data)
         self.image = get_image(self.number, self.name)
         self.prices = get_prices(page_data, self.lego_url)
@@ -76,7 +76,11 @@ class LEGO_set:
 def open_pages(url):
     # Loads the HTML code of the webpage into the variable page_code
     page = urllib.urlopen(url)
-    page_code = page.read()
+    page_code = ""
+    part = True
+    while part:
+        part = page.read()
+        page_code += part
     page.close()
     return page_code
 
@@ -90,10 +94,10 @@ def get_sets(year, set_numbers):
     # Visits Brickset for a list of sets in the given year.
     categories = ["Episode-I", "Episode-II", "Episode-III", "Episode-IV-VI", "Expanded-Universe",\
                   "MicroFighters", "Mini-Building-Set", "Rebels", "Seasonal", "The-Clone-Wars",\
-                  "Ultimate-Collector-Series"]
+                  "Ultimate-Collector-Series", "None"]
     category_tag = ["Prequel Trilogy", "Prequel Trilogy", "Prequel Trilogy", "Original Trilogy",
                     "Expanded Universe", "Microfighters", "Polybag set", "Rebels", "Seasonal",
-                    "The Clone Wars", "???????"]
+                    "The Clone Wars", "???????", "Polybag set"]
 
     brickset_main_url = "http://brickset.com/sets/theme-Star-Wars/category-Normal/year-" +\
                         str(year) + "/subtheme-"
@@ -125,91 +129,103 @@ def get_sets(year, set_numbers):
 
 def get_description(page_code):
     # Extracts the description of the set
-    description = re.findall(r'<p>(\w|\d)(.*?)</p>', str(re.findall(\
-        r'<div\sid="tab-content-product-summary"((.|\n)*?)</div>', str(page_code))))    
-    description = "Official description: [i]" +  description[0][0] + description[0][1] + "[/i]"
-    description = description.replace("\\xc2\\xae", "\xae")         # makes (R) symbol readable
-    description = description.replace("\\xe2\\x84\\xa2", "\x99")    # makes TM symbol readable
-    description = description.replace("\\xe2\\x80\\x99", "'")       # makes apostrophes readable
-    description = description.replace("\\xe2\\x80\\xa6", "\x85")    # makes ellipsis readable
-    description = description.replace("<i>", "[i]")                 # transfers HTML to BBCode italics
-    description = description.replace("</i>", "[/i]")               # transfers HTML to BBCode italics
-    description = description.replace("<em>", "[i]")                # transfers HTML to BBCode italics
-    description = description.replace("</em>", "[/i]")              # transfers HTML to BBCode italics
+    try:
+        description = re.findall(r'<p>(\w|\d)(.*?)</p>', str(re.findall(\
+            r'<div\sid="tab-content-product-summary"((.|\n)*?)</div>', str(page_code))))    
+        description = "Official description: [i]" +  description[0][0] + description[0][1] + "[/i]"
+        description = description.replace("\\xc2\\xae", "\xae")         # makes (R) symbol readable
+        description = description.replace("\\xe2\\x84\\xa2", "\x99")    # makes TM symbol readable
+        description = description.replace("\\xe2\\x80\\x99", "'")       # makes apostrophes readable
+        description = description.replace("\\xe2\\x80\\xa6", "\x85")    # makes ellipsis readable
+        description = description.replace("<i>", "[i]")                 # transfers HTML to BBCode italics
+        description = description.replace("</i>", "[/i]")               # transfers HTML to BBCode italics
+        description = description.replace("<em>", "[i]")                # transfers HTML to BBCode italics
+        description = description.replace("</em>", "[/i]")              # transfers HTML to BBCode italics
+
+    except Exception:
+        description = "Official description: [i]?[/i]"
 
     return description
 
 
 def get_piece_amount(page_code):
     # Extracts the amount of pieces in the set
-    return "Pieces: [b]" + re.findall(r'\d+', str(re.findall(r'Pieces(.*?)</em>', str(page_code))))[0]  + "[/b]"
+    try:
+        return "Pieces: [b]" + re.findall(r'\d+', str(re.findall(r'Pieces(.*?)</em>', str(page_code))))[0]\
+               + "[/b]"
+    except Exception:
+        return "Pieces: [b]?[/b]"
 
 
 def get_minifigs(page_code):
     # Extracts the information about the minifigures
-    minif_descr = re.findall(r'<li>((.|\n)*?)</li>', str(re.findall(\
-        r'<div\sid="tab-content-product-summary"((.|\n)*?)</div>', str(page_code))))[0][0]
-    minif_descr = str(minif_descr) + "\\"
-    
     try:
-        minif_descr = re.findall(r':\s(.*?)\\', str(minif_descr))[0]
-    except Exception:
-        minif_descr = minif_descr[9:-1]
+        minif_descr = re.findall(r'<li>((.|\n)*?)</li>', str(re.findall(\
+            r'<div\sid="tab-content-product-summary"((.|\n)*?)</div>', str(page_code))))[0][0]
+        minif_descr = str(minif_descr) + "\\"
+        
+        try:
+            minif_descr = re.findall(r':\s(.*?)\\', str(minif_descr))[0]
+        except Exception:
+            minif_descr = minif_descr[9:-1]
 
-    # These are the words that have to be removed, we want just the names
-    minif_descr = " " + minif_descr
-    words_to_delete = ["minifigures", "minifigure", "figures", "figure", " A "]
-    for word in words_to_delete:
-        minif_descr = minif_descr.replace(word, "")
+        # These are the words that have to be removed, we want just the names
+        minif_descr = " " + minif_descr
+        words_to_delete = ["minifigures", "minifigure", "figures", "figure", " A "]
+        for word in words_to_delete:
+            minif_descr = minif_descr.replace(word, "")
 
-    # Splits the sentence describing the minifigs in parts    
-    minif_descr = re.split(r'( and | a |,| an | with )', minif_descr)
+        # Splits the sentence describing the minifigs in parts    
+        minif_descr = re.split(r'( and | a |,| an | with )', minif_descr)
 
-    # Goes through all the words in the previously generated list
-    word = 0
-    while word < len(minif_descr):
-        i = 0
-        amount = ""
-        # checks whether an entry in the list is a minifigure by looking at the first character of the
-        # entry to be a capital letter (and it remembers the numbers it meets along the way).
-        while i < len(minif_descr[word]) and not minif_descr[word][i] in set(chr(x) for x in range(65,91)):
-            if  minif_descr[word][i] in set(chr(x) for x in range(49,58)):
-                amount += minif_descr[word][i]
-            i += 1
-                
-        if (i >= len(minif_descr[word])):
-            # when there was no capital letter found
-            del minif_descr[word]
-        else:
-            # when we're dealing with a minifigure
-            # to get rid of the initial spaces
-            minif_descr[word] = minif_descr[word][i:]
-
-            # to get rid of the spaces in the end
-            j = -1
-            while abs(j) < len(minif_descr[word])-1 and minif_descr[word][j] == " ":
-                j -= 1
-            if j < -1:
-                minif_descr[word] = minif_descr[word][:j+1]
-
-            # ends an "s" if there are multiple minifigs of the sort. This "s" might have gone lost
-            # because we're deleting the word "figures" etc. Also puts the amoutn in the correct format
-            if len(amount) > 0:
-                if minif_descr[word][-1] != "s":
-                    minif_descr[word] += "s"
-                minif_descr[word] = minif_descr[word] + " (" + amount + ")"
+        # Goes through all the words in the previously generated list
+        word = 0
+        while word < len(minif_descr):
+            i = 0
+            amount = ""
+            # checks whether an entry in the list is a minifigure by looking at the first character of the
+            # entry to be a capital letter (and it remembers the numbers it meets along the way).
+            while i < len(minif_descr[word]) and not minif_descr[word][i] in set(chr(x) for x in range(65,91)):
+                if  minif_descr[word][i] in set(chr(x) for x in range(49,58)):
+                    amount += minif_descr[word][i]
+                i += 1
                     
-            word += 1
+            if (i >= len(minif_descr[word])):
+                # when there was no capital letter found
+                del minif_descr[word]
+            else:
+                # when we're dealing with a minifigure
+                # to get rid of the initial spaces
+                minif_descr[word] = minif_descr[word][i:]
 
-    # Constructs the eventual string from the list with minifigures
-    minifigs = "[b]"
-    for m in range(len(minif_descr)):
-        minifigs += minif_descr[m]
-        if m == len(minif_descr) - 2:
-            minifigs += " and "
-        elif m != len(minif_descr) - 1:
-            minifigs += ", "
-    minifigs += "[/b]"
+                # to get rid of the spaces in the end
+                j = -1
+                while abs(j) < len(minif_descr[word])-1 and minif_descr[word][j] == " ":
+                    j -= 1
+                if j < -1:
+                    minif_descr[word] = minif_descr[word][:j+1]
+
+                # ends an "s" if there are multiple minifigs of the sort. This "s" might have gone lost
+                # because we're deleting the word "figures" etc. Also puts the amoutn in the correct format
+                if len(amount) > 0:
+                    if minif_descr[word][-1] != "s":
+                        minif_descr[word] += "s"
+                    minif_descr[word] = minif_descr[word] + " (" + amount + ")"
+                        
+                word += 1
+
+        # Constructs the eventual string from the list with minifigures
+        minifigs = "[b]"
+        for m in range(len(minif_descr)):
+            minifigs += minif_descr[m]
+            if m == len(minif_descr) - 2:
+                minifigs += " and "
+            elif m != len(minif_descr) - 1:
+                minifigs += ", "
+        minifigs += "[/b]"
+
+    except Exception:
+        minifigs = "[b]none[/b]"
 
     return "Minifigs: " + minifigs
 
@@ -218,28 +234,33 @@ def get_prices(page_code, url):
     # Extracts the prices for various countries, as listed in the "countries" variable
     # Not to be used in sales periods
     countries = ["en-US", "en-CA", "en-DK", "en-DE", "en-GB"]
-    price_pref = ["$ ", "$ ", "", "€ ", "£ "]
+    price_pref = ["$ ", "$ ", "", "â‚¬ ", "Â£ "]
     price_suff = [" USD", " CDN", " DKK", " EUR", " GBP"]
     prices_list = []
 
-    # Visits the web page for each country where we want to know the price
-    for country in range(len(countries)):
-        page_code = open_pages(url[:21] + countries[country] + url[26:])
-        
-        price = re.findall(r'(\d*)(\.|,)(\d*)',\
-                           str(re.findall(r'<span\sclass="product-price((.|\n)*?)</span>', str(page_code))))[0]
-        price_str = ""
-        for el in price:
-            price_str += el
-        
-        prices_list.append(price_pref[country] + price_str + price_suff[country])
+    try:
+        # Visits the web page for each country where we want to know the price
+        for country in range(len(countries)):
+            page_code = open_pages(url[:21] + countries[country] + url[26:])
+            
+            price = re.findall(r'(\d*)(\.|,)(\d*)',\
+                               str(re.findall(r'<span\sclass="product-price((.|\n)*?)</span>', \
+                                              str(page_code))))[0]
+            price_str = ""
+            for el in price:
+                price_str += el
+            
+            prices_list.append(price_pref[country] + price_str + price_suff[country])
 
-    prices = "Price: [b]"
-    for i in range(len(prices_list)):
-        prices += prices_list[i]
-        if i < len(prices_list)-1:
-            prices += ", "
-    prices += "[/b]"
+        prices = "Price: [b]"
+        for i in range(len(prices_list)):
+            prices += prices_list[i]
+            if i < len(prices_list)-1:
+                prices += ", "
+        prices += "[/b]"
+
+    except Exception:
+        prices = "Price: [b]?[/b]"
 
     return prices
 
@@ -250,14 +271,18 @@ def get_image(set_number, set_name):
     set_name = set_name.replace("'", "%27")
     brickipedia_url = "http://lego.wikia.com/wiki/" + str(set_number) + "_" + set_name
 
-    brickipedia_code = open_pages(brickipedia_url)
+    try:
+        brickipedia_code = open_pages(brickipedia_url)
 
-    image_str = re.findall(r'(<tr\sstyle="text-align:center;)((.|\n)*?)(</tr>)', brickipedia_code)
-    image_str = re.findall(r'(<noscript>)((.|\n)*?)(</noscript>)', image_str[0][1])
-    image_str = re.findall(r'(img\ssrc=")(.*?)(")', image_str[0][1])[0][1]
-    image_url = re.sub(r'(scale-to-width/)(\d*?)(\?)', "scale-to-width/500?", image_str)
+        image_str = re.findall(r'(<tr\sstyle="text-align:center;)((.|\n)*?)(</tr>)', brickipedia_code)
+        image_str = re.findall(r'(<noscript>)((.|\n)*?)(</noscript>)', image_str[0][1])
+        image_str = re.findall(r'(img\ssrc=")(.*?)(")', image_str[0][1])[0][1]
+        image_url = re.sub(r'(scale-to-width/)(\d*?)(\?)', "scale-to-width/500?", image_str)
 
-    urllib.urlretrieve(image_url, set_number + "_" + set_name + ".png")
+        urllib.urlretrieve(image_url, set_number + "_" + set_name + ".png")
+
+    except Exception:
+        image_url = "None"
     
     return image_url
     
@@ -268,10 +293,22 @@ def get_image(set_number, set_name):
 
 ## Example values:
 ##      release = January 2015
-##      set_numbers = range(30272,30275) + range(75072,75091)
+##      set_numbers = range(30272,30276) + range(75072,75091) + [5002938,5002947]
 ##      output_path = C:\Users\Bert\Downloads
 
 valid_year = False
+release = raw_input("Year in which the sets come out: ") # Just the number representing the year.
+                                                      # No quotation marks please
+
+
+
+                                                      
+year = re.findall(r'\s(\d*?)\s', " " + release + " ")
+for entry in year:
+    if len(entry) == 4:
+        year = entry
+        valid_year = True
+        
 while valid_year == False: # Keeps cycling to get a valid input
 
     
@@ -310,7 +347,19 @@ print "Finding sets to process..."
 
     
 sets = get_sets(year, accepted_nbs)
+
+# Gets the sets in the right order: first all regular sets with increasing number, then all polybag sets with
+# increasing number
 sets = sorted(sets, key= lambda SW_set: SW_set.number)
+poly_sets = []
+regular_sets = []
+for SW_set in sets:
+    if SW_set.category == "Polybag set":
+        poly_sets.append(SW_set)
+    else:
+        regular_sets.append(SW_set)
+sets = regular_sets + poly_sets
+        
 
 output = ""
 
