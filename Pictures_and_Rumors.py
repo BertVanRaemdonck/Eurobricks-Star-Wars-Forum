@@ -44,6 +44,7 @@ class LEGO_set:
 
         converted_name = name.replace(" ", "-").replace("'", "-")
         self.lego_url = "http://shop.lego.com/en-US/" + converted_name + "-" + str(number)
+        self.brickset_url = "http://brickset.com/sets/" + str(number) + "-1/" + converted_name
 
     def get_data(self):
         # Assigns values to the properties using the destined functions
@@ -57,16 +58,23 @@ class LEGO_set:
 
     def print_data(self):
         # Outputs the actual string that will be pasted in the post
-        output_string = "[newline][newline] [size=5][b]" + self.number + " " + self.name + "[/b][/size]" + \
-                        "[newline][hr] Subtheme: " + self.category + \
-                        "[newline]Release: " + self.release + \
-                        "[newline][newline]" + self.description + \
-                        "[newline][newline]" + "INSERT IMAGE" + \
-                        "[newline][newline]" + self.prices + \
-                        "[newline]" + self.piece_amount + \
-                        "[newline]" + self.minifigs + \
-                        "[newline]Source(s): [url=" + self.lego_url + "]LEGO[/url]" + "         INCOMPLETE!!!"\
-                        "[newline][newline][newline] [center]" + \
+        if self.description == ("Official description: [i]?[/i]" or ""):
+            url = self.brickset_url
+            src = "Brickset"
+        else:
+            url = self.lego_url
+            src = "LEGO"
+            
+        output_string = "\n\n [size=5][b]" + self.number + " " + self.name + "[/b][/size]" + \
+                        "\n[hr] Subtheme: [b]" + self.category + "[/b]"\
+                        "\nRelease: [b]" + self.release + "[/b]"\
+                        "\n\n" + self.description + \
+                        "\n\n[img]" + self.image + "[/img]"\
+                        "\n\n" + self.prices + \
+                        "\n" + self.piece_amount + \
+                        "\n" + self.minifigs + \
+                        "\nSource(s): [url=" + url + "]" + src + "[/url]" + \
+                        "\n\n\n [center]" + \
                         "[img]http://eurobricksstarwarsforum.files.wordpress.com/2013/06/blogicon.png[/img] "*3 +\
                         "[/center]"
 
@@ -92,12 +100,16 @@ def open_pages(url):
 
 def get_sets(year, set_numbers):
     # Visits Brickset for a list of sets in the given year.
-    categories = ["Episode-I", "Episode-II", "Episode-III", "Episode-IV-VI", "Expanded-Universe",\
-                  "MicroFighters", "Mini-Building-Set", "Rebels", "Seasonal", "The-Clone-Wars",\
-                  "Ultimate-Collector-Series", "None"]
-    category_tag = ["Prequel Trilogy", "Prequel Trilogy", "Prequel Trilogy", "Original Trilogy",
-                    "Expanded Universe", "Microfighters", "Polybag set", "Rebels", "Seasonal",
-                    "The Clone Wars", "???????", "Polybag set"]
+    categories = ["Episode-I", "Episode-II", "Episode-III", "Episode-IV-VI", "Episode-IV",
+                  "Episode-V", "Episode-VI", "The-Force-Awakens", "Episode-VIII",
+                  "Episode-IX", "Rogue-One", "Expanded-Universe", "MicroFighters",
+                  "Mini-Building-Set", "Rebels", "Seasonal", "The-Clone-Wars",
+                  "Ultimate-Collector-Series", "Original-Content", "None"] # Brickset names
+    category_tag = ["Prequel Trilogy", "Prequel Trilogy", "Prequel Trilogy", "Original Trilogy", "Original Trilogy",
+                    "Original Trilogy", "Original Trilogy", "Sequel Trilogy", "Sequel Trilogy",
+                    "Sequel Trilogy", "Anthology Movies", "Expanded Universe", "Microfighters",
+                    "Polybag set", "Rebels", "Seasonal", "The Clone Wars",
+                    "???????", "???????", "Polybag set"] # Eurobricks names
 
     brickset_main_url = "http://brickset.com/sets/theme-Star-Wars/category-Normal/year-" +\
                         str(year) + "/subtheme-"
@@ -135,6 +147,7 @@ def get_description(page_code):
         description = "Official description: [i]" +  description[0][0] + description[0][1] + "[/i]"
         description = description.replace("\\xc2\\xae", "\xae")         # makes (R) symbol readable
         description = description.replace("\\xe2\\x84\\xa2", "\x99")    # makes TM symbol readable
+        description = description.replace("&trade;", "\x99")            # makes TM symbol readable
         description = description.replace("\\xe2\\x80\\x99", "'")       # makes apostrophes readable
         description = description.replace("\\xe2\\x80\\xa6", "\x85")    # makes ellipsis readable
         description = description.replace("<i>", "[i]")                 # transfers HTML to BBCode italics
@@ -158,10 +171,22 @@ def get_piece_amount(page_code):
 
 
 def get_minifigs(page_code):
+
+    
+
+# TO DO: "... in ..." laatste stuk verwijderen!
+
+
+
     # Extracts the information about the minifigures
     try:
         minif_descr = re.findall(r'<li>((.|\n)*?)</li>', str(re.findall(\
             r'<div\sid="tab-content-product-summary"((.|\n)*?)</div>', str(page_code))))[0][0]
+        
+        minif_descr = minif_descr.replace("\\xc2\\xae", "")         # makes (R) symbol readable
+        minif_descr = minif_descr.replace("\\xe2\\x84\\xa2", "")    # makes TM symbol readable
+        minif_descr = minif_descr.replace("\\xe2\\x80\\x99", "'")       # makes apostrophes readable
+        
         minif_descr = str(minif_descr) + "\\"
         
         try:
@@ -267,22 +292,31 @@ def get_prices(page_code, url):
 def get_image(set_number, set_name):
     # Searches the image on Brickipedia and saves a resized picture to the earlier specified path.
     # Brickipedia was chosen because images can be resized via URL name only.
+
+    # NEW: Images grabbed form the LEGO Shop at Home cache are way more reliable and simple :)
+    # TO DO: Detect when no image was found (the default image will be returned... Maybe compare
+    #           it to a reference?) and go to Brickipedia anyway.
+    
     set_name = set_name.replace(" ", "_")
     set_name = set_name.replace("'", "%27")
     brickipedia_url = "http://lego.wikia.com/wiki/" + str(set_number) + "_" + set_name
+    lego_cache_url = "http://cache.lego.com/r/dynamic/is/image/LEGO/" + str(set_number) + \
+                        "?op_sharpen=0&resmode=sharp4&wid=500&fit=constrain,1&fmt=png-alpha"
 
     try:
-        brickipedia_code = open_pages(brickipedia_url)
-
-        image_str = re.findall(r'(<tr\sstyle="text-align:center;)((.|\n)*?)(</tr>)', brickipedia_code)
-        image_str = re.findall(r'(<noscript>)((.|\n)*?)(</noscript>)', image_str[0][1])
-        image_str = re.findall(r'(img\ssrc=")(.*?)(")', image_str[0][1])[0][1]
-        image_url = re.sub(r'(scale-to-width/)(\d*?)(\?)', "scale-to-width/500?", image_str)
-
+##        brickipedia_code = open_pages(brickipedia_url)
+##
+##        image_str = re.findall(r'(<tr\sstyle="text-align:center;)((.|\n)*?)(</tr>)', brickipedia_code)
+##        image_str = re.findall(r'(<noscript>)((.|\n)*?)(</noscript>)', image_str[0][1])
+##        image_str = re.findall(r'(img\ssrc=")(.*?)(")', image_str[0][1])[0][1]
+##        image_url = re.sub(r'(scale-to-width/)(\d*?)(\?)', "scale-to-width/500?", image_str)
+        image_url = lego_cache_url
         urllib.urlretrieve(image_url, set_number + "_" + set_name + ".png")
 
+        image_url = "http://www.eurobricks.com/forum/uploads/1249597531/gallery_101_33_64309.png"
+
     except Exception:
-        image_url = "None"
+        image_url = "http://www.eurobricks.com/forum/uploads/1249597531/gallery_101_33_64309.png"
     
     return image_url
     
@@ -381,7 +415,8 @@ print
 print "Images saved to" , output_path
 print "ATTENTION !  Quality of the images may vary. Check before uploading them."
 
-
+# NOTE: If no sets are found, and you're adding sets from a new movie, make sure
+# you update the category lists in the beginning of the "get_sets" function.
 
 
 
